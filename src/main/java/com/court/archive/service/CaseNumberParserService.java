@@ -6,7 +6,9 @@ import com.court.archive.enums.SpecialFlag;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -14,16 +16,54 @@ import java.util.regex.Pattern;
 public class CaseNumberParserService {
 
     private static final Pattern STANDARD_PATTERN = Pattern.compile(
-            "\\((\\d{4})\\)([\\u4e00-\\u9fa5]*)(\\d*)[\\u4e00-\\u9fa5]*([民初刑知行商海外])[初终复执申]字第(\\d+)号"
+            "\\((\\d{4})\\)([\\u4e00-\\u9fa5]*)(\\d*)[\\u4e00-\\u9fa5]*?([民初刑知执行商海外])[初终复执申]?字第(\\d+)(?:[-~至](\\d+))?号"
     );
 
     private static final Pattern SIMPLE_PATTERN = Pattern.compile(
-            "([民初刑知行商海外])[初终复执申]?(\\d*)[\\u4e00-\\u9fa5]*(\\d{4})第(\\d+)号"
+            "([民初刑知执行商海外])[初终复执申]?(\\d*)[\\u4e00-\\u9fa5]*(\\d{4})第(\\d+)(?:[-~至](\\d+))?号"
     );
 
     private static final Pattern BRACKET_YEAR_PATTERN = Pattern.compile(
-            "\\((\\d{4})\\)([\\u4e00-\\u9fa5]*)(\\d*)([民初刑知行商海外])[初终复执申]字第(\\d+)号"
+            "\\((\\d{4})\\)([\\u4e00-\\u9fa5]*)(\\d*)[\\u4e00-\\u9fa5]*?([民初刑知执行商海外])[初终复执申]?字第(\\d+)(?:[-~至](\\d+))?号"
     );
+
+    private static final Map<String, String> ADMIN_DIVISION_MAP = new HashMap<>();
+
+    static {
+        ADMIN_DIVISION_MAP.put("京", "北京市");
+        ADMIN_DIVISION_MAP.put("津", "天津市");
+        ADMIN_DIVISION_MAP.put("沪", "上海市");
+        ADMIN_DIVISION_MAP.put("渝", "重庆市");
+        ADMIN_DIVISION_MAP.put("冀", "河北省");
+        ADMIN_DIVISION_MAP.put("豫", "河南省");
+        ADMIN_DIVISION_MAP.put("云", "云南省");
+        ADMIN_DIVISION_MAP.put("辽", "辽宁省");
+        ADMIN_DIVISION_MAP.put("黑", "黑龙江省");
+        ADMIN_DIVISION_MAP.put("湘", "湖南省");
+        ADMIN_DIVISION_MAP.put("皖", "安徽省");
+        ADMIN_DIVISION_MAP.put("鲁", "山东省");
+        ADMIN_DIVISION_MAP.put("新", "新疆维吾尔自治区");
+        ADMIN_DIVISION_MAP.put("苏", "江苏省");
+        ADMIN_DIVISION_MAP.put("浙", "浙江省");
+        ADMIN_DIVISION_MAP.put("赣", "江西省");
+        ADMIN_DIVISION_MAP.put("鄂", "湖北省");
+        ADMIN_DIVISION_MAP.put("桂", "广西壮族自治区");
+        ADMIN_DIVISION_MAP.put("甘", "甘肃省");
+        ADMIN_DIVISION_MAP.put("晋", "山西省");
+        ADMIN_DIVISION_MAP.put("蒙", "内蒙古自治区");
+        ADMIN_DIVISION_MAP.put("陕", "陕西省");
+        ADMIN_DIVISION_MAP.put("吉", "吉林省");
+        ADMIN_DIVISION_MAP.put("闽", "福建省");
+        ADMIN_DIVISION_MAP.put("贵", "贵州省");
+        ADMIN_DIVISION_MAP.put("粤", "广东省");
+        ADMIN_DIVISION_MAP.put("青", "青海省");
+        ADMIN_DIVISION_MAP.put("藏", "西藏自治区");
+        ADMIN_DIVISION_MAP.put("川", "四川省");
+        ADMIN_DIVISION_MAP.put("宁", "宁夏回族自治区");
+        ADMIN_DIVISION_MAP.put("琼", "海南省");
+        ADMIN_DIVISION_MAP.put("01", "最高人民法院");
+        ADMIN_DIVISION_MAP.put("02", "高级人民法院");
+    }
 
     public CaseNumberParseResult parse(String caseNumber) {
         CaseNumberParseResult result = new CaseNumberParseResult();
@@ -78,7 +118,7 @@ public class CaseNumberParserService {
             return result;
         }
 
-        result.setErrorMessage("无法解析案号格式，请检查案号是否正确。正确格式示例：(2025)京0101民初字第123号 或 民初0101民2025第123号");
+        result.setErrorMessage("无法解析案号格式，请检查案号是否正确。正确格式示例：(2025)京0101民初字第123号 或 民初0101民2025第123号 或 (2025)京0101民初字第123-130号");
         return result;
     }
 
@@ -88,6 +128,7 @@ public class CaseNumberParserService {
         String courtArea = matcher.group(2);
         String courtNum = matcher.group(3);
         result.setCourtCode(courtArea + courtNum);
+        resolveAdministrativeDivision(result, courtArea, courtNum);
         String caseTypeCode = matcher.group(4);
         CaseType caseType = CaseType.fromCode(caseTypeCode);
         if (caseType != null) {
@@ -95,7 +136,14 @@ public class CaseNumberParserService {
             result.setCaseTypeName(caseType.getDesc());
         }
         result.setCaseLevel(detectCaseLevel(result.getCaseNumber()));
-        result.setSerialNumber(Integer.parseInt(matcher.group(5)));
+        int serialStart = Integer.parseInt(matcher.group(5));
+        result.setSerialNumber(serialStart);
+        result.setSerialNumberStart(serialStart);
+        if (matcher.group(6) != null) {
+            result.setSerialNumberEnd(Integer.parseInt(matcher.group(6)));
+        } else {
+            result.setSerialNumberEnd(serialStart);
+        }
     }
 
     private void fillFromBracketPattern(CaseNumberParseResult result, Matcher matcher) {
@@ -104,6 +152,7 @@ public class CaseNumberParserService {
         String courtArea = matcher.group(2);
         String courtNum = matcher.group(3);
         result.setCourtCode(courtArea + courtNum);
+        resolveAdministrativeDivision(result, courtArea, courtNum);
         String caseTypeCode = matcher.group(4);
         CaseType caseType = CaseType.fromCode(caseTypeCode);
         if (caseType != null) {
@@ -111,7 +160,14 @@ public class CaseNumberParserService {
             result.setCaseTypeName(caseType.getDesc());
         }
         result.setCaseLevel(detectCaseLevel(result.getCaseNumber()));
-        result.setSerialNumber(Integer.parseInt(matcher.group(5)));
+        int serialStart = Integer.parseInt(matcher.group(5));
+        result.setSerialNumber(serialStart);
+        result.setSerialNumberStart(serialStart);
+        if (matcher.group(6) != null) {
+            result.setSerialNumberEnd(Integer.parseInt(matcher.group(6)));
+        } else {
+            result.setSerialNumberEnd(serialStart);
+        }
     }
 
     private void fillFromSimplePattern(CaseNumberParseResult result, Matcher matcher) {
@@ -122,10 +178,42 @@ public class CaseNumberParserService {
             result.setCaseType(caseType);
             result.setCaseTypeName(caseType.getDesc());
         }
-        result.setCourtCode(matcher.group(2));
+        String courtCode = matcher.group(2);
+        result.setCourtCode(courtCode);
+        resolveAdministrativeDivision(result, "", courtCode);
         result.setYear(Integer.parseInt(matcher.group(3)));
         result.setCaseLevel(detectCaseLevel(result.getCaseNumber()));
-        result.setSerialNumber(Integer.parseInt(matcher.group(4)));
+        int serialStart = Integer.parseInt(matcher.group(4));
+        result.setSerialNumber(serialStart);
+        result.setSerialNumberStart(serialStart);
+        if (matcher.group(5) != null) {
+            result.setSerialNumberEnd(Integer.parseInt(matcher.group(5)));
+        } else {
+            result.setSerialNumberEnd(serialStart);
+        }
+    }
+
+    private void resolveAdministrativeDivision(CaseNumberParseResult result, String courtArea, String courtNum) {
+        if (courtArea != null && !courtArea.isEmpty()) {
+            result.setAdministrativeDivision(courtArea);
+            String name = ADMIN_DIVISION_MAP.get(courtArea);
+            result.setAdministrativeDivisionName(name != null ? name : courtArea);
+        } else if (courtNum != null && !courtNum.isEmpty()) {
+            if (courtNum.length() >= 2) {
+                String prefix = courtNum.substring(0, 2);
+                String name = ADMIN_DIVISION_MAP.get(prefix);
+                if (name != null) {
+                    result.setAdministrativeDivision(prefix);
+                    result.setAdministrativeDivisionName(name);
+                } else {
+                    result.setAdministrativeDivision(courtNum);
+                    result.setAdministrativeDivisionName("法院代码" + courtNum);
+                }
+            } else {
+                result.setAdministrativeDivision(courtNum);
+                result.setAdministrativeDivisionName("法院代码" + courtNum);
+            }
+        }
     }
 
     private CaseType detectCaseType(String caseNumber) {
@@ -165,5 +253,9 @@ public class CaseNumberParserService {
             result = result.replace(flag.getKeyword(), "");
         }
         return result;
+    }
+
+    public Map<String, String> getAdminDivisionMap() {
+        return ADMIN_DIVISION_MAP;
     }
 }

@@ -10,11 +10,15 @@ public class CaseNumberParseResult {
     private String caseNumber;
     private String normalizedCaseNumber;
     private String courtCode;
+    private String administrativeDivision;
+    private String administrativeDivisionName;
     private Integer year;
     private CaseType caseType;
     private String caseTypeName;
     private String caseLevel;
     private Integer serialNumber;
+    private Integer serialNumberStart;
+    private Integer serialNumberEnd;
     private List<SpecialFlag> specialFlags;
     private List<String> specialFlagNames;
     private String errorMessage;
@@ -49,6 +53,22 @@ public class CaseNumberParseResult {
 
     public void setCourtCode(String courtCode) {
         this.courtCode = courtCode;
+    }
+
+    public String getAdministrativeDivision() {
+        return administrativeDivision;
+    }
+
+    public void setAdministrativeDivision(String administrativeDivision) {
+        this.administrativeDivision = administrativeDivision;
+    }
+
+    public String getAdministrativeDivisionName() {
+        return administrativeDivisionName;
+    }
+
+    public void setAdministrativeDivisionName(String administrativeDivisionName) {
+        this.administrativeDivisionName = administrativeDivisionName;
     }
 
     public Integer getYear() {
@@ -89,6 +109,22 @@ public class CaseNumberParseResult {
 
     public void setSerialNumber(Integer serialNumber) {
         this.serialNumber = serialNumber;
+    }
+
+    public Integer getSerialNumberStart() {
+        return serialNumberStart;
+    }
+
+    public void setSerialNumberStart(Integer serialNumberStart) {
+        this.serialNumberStart = serialNumberStart;
+    }
+
+    public Integer getSerialNumberEnd() {
+        return serialNumberEnd;
+    }
+
+    public void setSerialNumberEnd(Integer serialNumberEnd) {
+        this.serialNumberEnd = serialNumberEnd;
     }
 
     public List<SpecialFlag> getSpecialFlags() {
