@@ -1,0 +1,16 @@
+target/
+*.log
+*.tmp
+*.swp
+.idea/
+.vscode/
+.mvn/timing.properties
+.env
+.env.*
+.DS_Store
+Thumbs.db
+.done
+qa-report*
+screenshots/
+traces/
+playwright-report/
